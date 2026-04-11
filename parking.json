@@ -1,0 +1,14 @@
+{
+  "places": [
+    {
+      "numero": 1,
+      "occupee": false,
+      "vehicule": null
+    },
+    {
+      "numero": 3,
+      "occupee": false,
+      "vehicule": null
+    }
+  ]
+}
