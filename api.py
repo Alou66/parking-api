@@ -16,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-storage = ParkingStorage("parking.json")
+storage = ParkingStorage()
 service = ParkingService(storage)
 
 @app.post("/init", response_model=MessageResponse)

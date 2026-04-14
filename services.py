@@ -12,15 +12,7 @@ class ParkingService:
         self.storage = storage
 
     def init_parking(self, nombre: int):
-        data = {"places": []}
-        for i in range(1, nombre + 1):
-            data["places"].append({
-                "numero": i,
-                "occupee": False,
-                "vehicule": None
-            })
-        self.storage.ecrire(data)
-        return {"message": "Parking initialise"}
+        return self.storage.initiale(nombre)
 
     def garer(self, raw_imm, marque, modele):
         imm, err = valider_immatriculation(raw_imm)
@@ -35,51 +27,45 @@ class ParkingService:
         if mod is None:
             raise ServiceError(err_mod)
 
-        data = self.storage.lire()
+        if self.storage.vehicule_existe(imm):
+            raise ServiceError("Vehicule deja present.")
 
-        for p in data["places"]:
-            if p["vehicule"] and p["vehicule"]["immatriculation"] == imm:
-                raise ServiceError("Vehicule deja present.")
+        place_libre = self.storage.trouver_place_libre()
+        if not place_libre:
+            raise ServiceError("Parking plein.")
 
-        for p in data["places"]:
-            if not p["occupee"]:
-                p["occupee"] = True
-                p["vehicule"] = {
-                    "immatriculation": imm,
-                    "marque": m,
-                    "modele": mod,
-                    "heure_entree": datetime.now().isoformat()
-                }
-                self.storage.ecrire(data)
-                return p
-
-        raise ServiceError("Parking plein.")
+        return self.storage.garer(place_libre["numero"], imm, m, mod)
 
     def sortir(self, raw_imm):
         imm, _ = valider_immatriculation(raw_imm)
-        data = self.storage.lire()
+        
+        place_info = self.storage.trouver_place_par_imm(imm)
+        if not place_info:
+            raise ServiceError("Vehicule introuvable.")
+        
+        vehicule = self.storage.trouver_vehicule(imm)
+        if not vehicule:
+            raise ServiceError("Vehicule introuvable.")
+        
+        heure = datetime.fromisoformat(vehicule["heure_entree"])
+        duree = datetime.now() - heure
+        prix = round((duree.total_seconds() / 3600) * 500)
 
-        for p in data["places"]:
-            if p["vehicule"] and p["vehicule"]["immatriculation"] == imm:
-                heure = datetime.fromisoformat(p["vehicule"]["heure_entree"])
-                duree = datetime.now() - heure
-                prix = round((duree.total_seconds() / 3600) * 500)
+        self.storage.liberer(place_info["numero"])
 
-                p["occupee"] = False
-                p["vehicule"] = None
-                self.storage.ecrire(data)
-
-                return {"message": f"Sortie OK. Prix: {prix} FCFA"}
-
-        raise ServiceError("Vehicule introuvable.")
+        return {"message": f"Sortie OK. Prix: {prix} FCFA"}
 
     def tous(self):
         return self.storage.lire()
 
     def rechercher(self, raw_imm):
         imm, _ = valider_immatriculation(raw_imm)
+        
+        place_info = self.storage.trouver_place_par_imm(imm)
+        if not place_info:
+            raise ServiceError("Vehicule introuvable.")
+        
         data = self.storage.lire()
-
         for p in data["places"]:
             if p["vehicule"] and p["vehicule"]["immatriculation"] == imm:
                 return p
@@ -87,14 +73,12 @@ class ParkingService:
         raise ServiceError("Vehicule introuvable.")
 
     def supprimer_place(self, numero: int):
-        data = self.storage.lire()
-
-        for p in data["places"]:
-            if p["numero"] == numero:
-                if p["occupee"]:
-                    raise ServiceError("Place occupee.")
-                data["places"].remove(p)
-                self.storage.ecrire(data)
-                return {"message": "Place supprimee"}
-
-        raise ServiceError("Place introuvable.")
+        place_info = self.storage.trouver_place_par_numero(numero)
+        if not place_info:
+            raise ServiceError("Place introuvable.")
+        
+        if place_info["etu"]:
+            raise ServiceError("Place occupee.")
+        
+        self.storage.supprimer_place(numero)
+        return {"message": "Place supprimee"}
