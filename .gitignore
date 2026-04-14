@@ -1,2 +1,17 @@
-/venv
+
+# Environnement virtuel
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+
+#  Fichiers de configuration locaux
 .env
+.env.*
+*.env
+
